@@ -1,14 +1,14 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"log"
 	"path/filepath"
+	"time"
 
 	klient "github.com/vikas-gautam/kluster/pkg/client/clientset/versioned"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kInfFac "github.com/vikas-gautam/kluster/pkg/client/informers/externalversions"
+	"github.com/vikas-gautam/kluster/pkg/controller"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -40,13 +40,23 @@ func main() {
 	if err != nil {
 		log.Printf("getting klient set %s\n", err.Error())
 	}
-	//fmt.Println(klientset)
+	// fmt.Println(klientset)
 
-	klist, err := klientset.GolearningV1alpha1().Klusters("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Printf("listing klusters %s\n", err.Error())
+	// klist, err := klientset.GolearningV1alpha1().Klusters("").List(context.Background(), metav1.ListOptions{})
+	// if err != nil {
+	// 	log.Printf("listing klusters %s\n", err.Error())
+	// }
+
+	// fmt.Println(klist.Items)
+
+	//above code not required bcz we will call controller
+
+	infoFactory := kInfFac.NewSharedInformerFactory(klientset, 20*time.Minute)
+	ch := make(chan struct{})
+	c := controller.NewController(klientset, infoFactory.Golearning().V1alpha1().Klusters())
+	infoFactory.Start(ch)
+	if err := c.Run(ch); err != nil{
+		log.Printf("error running controller %s\n", err.Error())
 	}
-
-	fmt.Println(klist.Items[0].Name)
 
 }
