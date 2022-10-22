@@ -7,13 +7,17 @@ import (
 	klientset "github.com/vikas-gautam/kluster/pkg/client/clientset/versioned"
 	kinf "github.com/vikas-gautam/kluster/pkg/client/informers/externalversions/golearning.dev/v1alpha1"
 	klister "github.com/vikas-gautam/kluster/pkg/client/listers/golearning.dev/v1alpha1"
-
+	"github.com/vikas-gautam/kluster/pkg/do"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
 
 type Controller struct {
+	//k8s native client
+	k8sclient kubernetes.Interface
+
 	//clientset for custom resource kluster
 	klient klientset.Interface
 
@@ -27,10 +31,11 @@ type Controller struct {
 	wq workqueue.RateLimitingInterface
 }
 
-func NewController(klient klientset.Interface, klusterInformer kinf.KlusterInformer) *Controller {
+func NewController(k8sclient kubernetes.Interface, klient klientset.Interface, klusterInformer kinf.KlusterInformer) *Controller {
 	//to initialize controller we need clientset and informer of custom type
 
 	c := &Controller{
+		k8sclient:     k8sclient,
 		klient:        klient,
 		klusterSynced: klusterInformer.Informer().HasSynced,
 		klister:       klusterInformer.Lister(),
@@ -90,6 +95,12 @@ func (c *Controller) processNextItem() bool {
 		return false
 	}
 	log.Printf("kluster spec that we have is %+v\n", kluster.Spec)
+
+	clusterID, err := do.Create(c.k8sclient, kluster.Spec)
+	if err != nil {
+		log.Printf("error in creating cluster %s", err.Error())
+	}
+	log.Printf("cluster ID that we have created %s\n", clusterID) 
 
 	return true
 }
