@@ -17,6 +17,7 @@ type Kluster struct {
 	Status KlsuterStatus `json:"status,omitempty"`
 }
 
+// as subresource
 type KlsuterStatus struct {
 	KlusterID  string `json:"klusterID,omitempty"`
 	Progress   string `json:"progress,omitempty"`

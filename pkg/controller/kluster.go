@@ -1,13 +1,16 @@
 package controller
 
 import (
+	"context"
 	"log"
 	"time"
 
+	"github.com/vikas-gautam/kluster/pkg/apis/golearning.dev/v1alpha1"
 	klientset "github.com/vikas-gautam/kluster/pkg/client/clientset/versioned"
 	kinf "github.com/vikas-gautam/kluster/pkg/client/informers/externalversions/golearning.dev/v1alpha1"
 	klister "github.com/vikas-gautam/kluster/pkg/client/listers/golearning.dev/v1alpha1"
 	"github.com/vikas-gautam/kluster/pkg/do"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -100,9 +103,22 @@ func (c *Controller) processNextItem() bool {
 	if err != nil {
 		log.Printf("error in creating cluster %s", err.Error())
 	}
-	log.Printf("cluster ID that we have created %s\n", clusterID) 
+	log.Printf("cluster ID that we have created %s\n", clusterID)
+	//call updateStatus method
+	err = c.updateStatus(clusterID, "creating", kluster)
+	if err != nil {
+		log.Printf("error %s, updating status of the kluster %s\n", err.Error(), kluster.Name)
+	}
 
 	return true
+}
+
+// updateStatus in CR i.e. kluster
+func (c *Controller) updateStatus(id, progress string, kluster *v1alpha1.Kluster) error {
+	kluster.Status.KlusterID = id
+	kluster.Status.Progress = progress
+	_, err := c.klient.GolearningV1alpha1().Klusters(kluster.Namespace).UpdateStatus(context.Background(), kluster, metav1.UpdateOptions{})
+	return err
 }
 
 func (c *Controller) handleAdd(obj interface{}) {

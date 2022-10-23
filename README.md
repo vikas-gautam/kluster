@@ -20,6 +20,38 @@ lister
 generate crd with controller-gen
 
 ```
-./controller-gen paths=./apis/golearning.dev/v1alpha1  crd:crdVersions=v1 output:crd:artifacts:config=manifests 
+./controller-gen paths=github.com/vikas-gautam/kluster/apis/golearning.dev/v1alpha1  crd:crdVersions=v1 output:crd:artifacts:config=manifests 
 ```
 create cr in manifests folder
+
+#subresources and additional printer columns 
+once cluster is created on DO it returns ClusterID
+now to proceed further we need to store ClusterID somewhere
+
+Hence we can hava status field appended to the yaml (by controller) of custom resource which 
+will have all the required information.
+
+apiVersion:
+kind:
+metadata:
+spec:
+    ---
+    ---
+status:
+    clusterid
+    kubeconfig
+    progress
+
+status is written by controller only.
+
+
+#subresources:
+pod - resource
+logs as subresources (native subresources)
+
+---------------------------------------------------------------
+
+
+
+
+

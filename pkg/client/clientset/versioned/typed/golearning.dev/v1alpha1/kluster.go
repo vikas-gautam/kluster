@@ -40,6 +40,7 @@ type KlustersGetter interface {
 type KlusterInterface interface {
 	Create(ctx context.Context, kluster *v1alpha1.Kluster, opts v1.CreateOptions) (*v1alpha1.Kluster, error)
 	Update(ctx context.Context, kluster *v1alpha1.Kluster, opts v1.UpdateOptions) (*v1alpha1.Kluster, error)
+	//updatestatus field is for cntroller
 	UpdateStatus(ctx context.Context, kluster *v1alpha1.Kluster, opts v1.UpdateOptions) (*v1alpha1.Kluster, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
