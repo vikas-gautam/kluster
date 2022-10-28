@@ -14,9 +14,9 @@ import (
 	"strings"
 
 	"github.com/digitalocean/godo"
+	"github.com/vikas-gautam/kluster/pkg/apis/golearning.dev/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"github.com/vikas-gautam/kluster/pkg/apis/golearning.dev/v1alpha1"
 )
 
 func Create(c kubernetes.Interface, spec v1alpha1.KlusterSpec) (string, error) {
@@ -54,6 +54,24 @@ func Create(c kubernetes.Interface, spec v1alpha1.KlusterSpec) (string, error) {
 	}
 
 	return clusterCreated.ID, nil
+}
+
+func ClusterState(c kubernetes.Interface, spec v1alpha1.KlusterSpec, id string) (string, error) {
+	//tokenSecret has value in ns/secretname format
+	secretNameSpace := strings.Split(spec.TokenSecret, "/")[0]
+	k8sSecretName := strings.Split(spec.TokenSecret, "/")[1]
+
+	//get the token value from k8sSecret dosecret
+	tokenValue, err := getToken(c, secretNameSpace, k8sSecretName)
+	if err != nil {
+		fmt.Printf("Unable to get token from k8sSecret %s", err.Error())
+	}
+
+	//do client with tokenValue
+	client := godo.NewFromToken(tokenValue)
+
+	cluster, _, err := client.Kubernetes.Get(context.Background(), id)
+	return string(cluster.Status.State), err
 }
 
 func getToken(k8sclient kubernetes.Interface, secretNameSpace, k8sSecretName string) (string, error) {

@@ -2,9 +2,11 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
+	"github.com/kanisterio/kanister/pkg/poll"
 	"github.com/vikas-gautam/kluster/pkg/apis/golearning.dev/v1alpha1"
 	klientset "github.com/vikas-gautam/kluster/pkg/client/clientset/versioned"
 	kinf "github.com/vikas-gautam/kluster/pkg/client/informers/externalversions/golearning.dev/v1alpha1"
@@ -104,20 +106,58 @@ func (c *Controller) processNextItem() bool {
 		log.Printf("error in creating cluster %s", err.Error())
 	}
 	log.Printf("cluster ID that we have created %s\n", clusterID)
+
 	//call updateStatus method
+	fmt.Println("calling updateStatus function")
 	err = c.updateStatus(clusterID, "creating", kluster)
 	if err != nil {
 		log.Printf("error %s, updating status of the kluster %s\n", err.Error(), kluster.Name)
 	}
 
+	fmt.Println("calling the DO API to check cluster is running")
+	// query the DO cluster API, make sure cluster is running
+	err = c.waitForCluster(kluster.Spec, clusterID)
+	if err != nil {
+		log.Printf("error %s, waiting for cluster to be running", err.Error())
+	}
+
+	fmt.Println("updating the cluster status with progress running")
+	//updating the kluster status
+	c.updateStatus(clusterID, "running", kluster)
+	if err != nil {
+		log.Printf("error %s, updating cluster status after waiting for cluster status", err.Error())
+	}
+
 	return true
 }
 
+func (c *Controller) waitForCluster(spec v1alpha1.KlusterSpec, clusterID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel() 
+
+	return poll.Wait(ctx, func(ctx context.Context) (bool, error) {
+		state, err := do.ClusterState(c.k8sclient, spec, clusterID)
+		if err != nil {
+			return false, err
+		}
+		if state == "running" {
+			return true, nil
+		}
+		return false, nil
+	})
+}
+
 // updateStatus in CR i.e. kluster
-func (c *Controller) updateStatus(id, progress string, kluster *v1alpha1.Kluster) error {
-	kluster.Status.KlusterID = id
-	kluster.Status.Progress = progress
-	_, err := c.klient.GolearningV1alpha1().Klusters(kluster.Namespace).UpdateStatus(context.Background(), kluster, metav1.UpdateOptions{})
+func (c *Controller) updateStatus(id string, progress string, kluster *v1alpha1.Kluster) error {
+	//get the latest version of resource kluster which exists after controller has added status field's values
+	updatedKluster, err := c.klient.GolearningV1alpha1().Klusters(kluster.Namespace).Get(context.Background(), kluster.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	updatedKluster.Status.KlusterID = id
+	updatedKluster.Status.Progress = progress
+	_, err = c.klient.GolearningV1alpha1().Klusters(kluster.Namespace).UpdateStatus(context.Background(), updatedKluster, metav1.UpdateOptions{})
 	return err
 }
 

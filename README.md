@@ -51,6 +51,14 @@ logs as subresources (native subresources)
 
 ---------------------------------------------------------------
 
+#event recorder for kluster and routines to handle objects from queue: P5
+
+progress status field is static as of now i.e. creating
+in kluster.go - run a DO API query to check cluster status and then change that static - creating state to runnng
+waitForCluster to be up and running, once it is running update status to be running
+
+
+
 
 
 
