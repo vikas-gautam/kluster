@@ -1,0 +1,13 @@
+apiVersion: golearning.dev/v1alpha1
+kind: Kluster
+metadata:
+  name: kluster-2
+spec:
+  name: kluster-2
+  region: "blr1"
+  version: "1.22.13-do.0"
+  tokenSecret: "default/dosecret"
+  nodePools:
+    - count: 1
+      name: "dummy-nodepool"
+      size: "s-1vcpu-2gb"

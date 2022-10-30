@@ -79,6 +79,6 @@ func getToken(k8sclient kubernetes.Interface, secretNameSpace, k8sSecretName str
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(s)
+	// fmt.Println(s)
 	return string(s.Data["token"]), nil
 }

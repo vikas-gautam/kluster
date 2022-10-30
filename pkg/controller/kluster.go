@@ -9,13 +9,19 @@ import (
 	"github.com/kanisterio/kanister/pkg/poll"
 	"github.com/vikas-gautam/kluster/pkg/apis/golearning.dev/v1alpha1"
 	klientset "github.com/vikas-gautam/kluster/pkg/client/clientset/versioned"
+	customscheme "github.com/vikas-gautam/kluster/pkg/client/clientset/versioned/scheme"
 	kinf "github.com/vikas-gautam/kluster/pkg/client/informers/externalversions/golearning.dev/v1alpha1"
 	klister "github.com/vikas-gautam/kluster/pkg/client/listers/golearning.dev/v1alpha1"
 	"github.com/vikas-gautam/kluster/pkg/do"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -34,17 +40,34 @@ type Controller struct {
 
 	//queue
 	wq workqueue.RateLimitingInterface
+
+	//event recorder
+	recorder record.EventRecorder
 }
 
 func NewController(k8sclient kubernetes.Interface, klient klientset.Interface, klusterInformer kinf.KlusterInformer) *Controller {
-	//to initialize controller we need clientset and informer of custom type
+	// for events recorder
 
+	//we are adding custom scheme to satandard scheme, it actually adding our operator type to satandard scheme
+	runtime.Must(customscheme.AddToScheme(scheme.Scheme))
+
+	log.Println("Creating even broadcraster")
+	eveBroadCaster := record.NewBroadcaster()
+	eveBroadCaster.StartStructuredLogging(0)
+	eveBroadCaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
+		Interface: k8sclient.CoreV1().Events(""),
+	})
+	//initialize recorder
+	recorder := eveBroadCaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "kluster"})
+
+	//to initialize controller we need clientset and informer of custom type
 	c := &Controller{
 		k8sclient:     k8sclient,
 		klient:        klient,
 		klusterSynced: klusterInformer.Informer().HasSynced,
 		klister:       klusterInformer.Lister(),
 		wq:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "kluster"),
+		recorder:      recorder,
 	}
 
 	klusterInformer.Informer().AddEventHandler(
@@ -105,6 +128,10 @@ func (c *Controller) processNextItem() bool {
 	if err != nil {
 		log.Printf("error in creating cluster %s", err.Error())
 	}
+	//if we get error above obviously we won't be continuing to the next step directly or we will be
+	//capturing those in events too - type coulmn in events - normal, warning
+	c.recorder.Event(kluster, corev1.EventTypeNormal, "ClusterCreation", "DO API was called to create the cluster")
+
 	log.Printf("cluster ID that we have created %s\n", clusterID)
 
 	//call updateStatus method
@@ -127,13 +154,14 @@ func (c *Controller) processNextItem() bool {
 	if err != nil {
 		log.Printf("error %s, updating cluster status after waiting for cluster status", err.Error())
 	}
+	c.recorder.Event(kluster, corev1.EventTypeNormal, "ClusterCreationCompleted", "DO cluster creation was completed")
 
 	return true
 }
 
 func (c *Controller) waitForCluster(spec v1alpha1.KlusterSpec, clusterID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel() 
+	defer cancel()
 
 	return poll.Wait(ctx, func(ctx context.Context) (bool, error) {
 		state, err := do.ClusterState(c.k8sclient, spec, clusterID)
