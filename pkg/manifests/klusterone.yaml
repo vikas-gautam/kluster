@@ -1,9 +1,9 @@
 apiVersion: golearning.dev/v1alpha1
 kind: Kluster
 metadata:
-  name: kluster-0
+  name: vikastest4-kluster-0
 spec:
-  name: kluster-0
+  name: vikastest4-kluster-0
   region: "blr1"
   version: "1.22.13-do.0"
   tokenSecret: "default/dosecret"

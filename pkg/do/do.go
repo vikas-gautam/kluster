@@ -56,6 +56,42 @@ func Create(c kubernetes.Interface, spec v1alpha1.KlusterSpec) (string, error) {
 	return clusterCreated.ID, nil
 }
 
+func Delete(c kubernetes.Interface, spec string, cname string) error {
+	//tokenSecret has value in ns/secretname format
+	secretNameSpace := strings.Split(spec, "/")[0]
+	k8sSecretName := strings.Split(spec, "/")[1]
+
+	//get the token value from k8sSecret dosecret
+	tokenValue, err := getToken(c, secretNameSpace, k8sSecretName)
+	if err != nil {
+		fmt.Printf("Unable to get token from k8sSecret %s", err.Error())
+	}
+
+	//do client with tokenValue
+	client := godo.NewFromToken(tokenValue)
+	fmt.Println(client)
+
+	opt := &godo.ListOptions{
+		Page:    1,
+		PerPage: 200,
+	}
+	clusters, _, err := client.Kubernetes.List(context.Background(), opt)
+	if err != nil {
+		return err
+	}
+
+	for _, cluster := range clusters {
+		if cluster.Name == cname {
+			fmt.Println(cluster.ID)
+			_, err = client.Kubernetes.Delete(context.Background(), cluster.ID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func ClusterState(c kubernetes.Interface, spec v1alpha1.KlusterSpec, id string) (string, error) {
 	//tokenSecret has value in ns/secretname format
 	secretNameSpace := strings.Split(spec.TokenSecret, "/")[0]

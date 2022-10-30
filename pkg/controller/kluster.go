@@ -105,6 +105,7 @@ func (c *Controller) processNextItem() bool {
 		//logs as well
 		return false
 	}
+	defer c.wq.Forget(item)
 	key, err := cache.MetaNamespaceKeyFunc(item)
 	if err != nil {
 		log.Printf("error %s calling namespace key func on cache for item\n", err.Error())
@@ -118,15 +119,31 @@ func (c *Controller) processNextItem() bool {
 
 	//we will use lister instead of calling api server
 	kluster, err := c.klister.Klusters(ns).Get(name)
+
+	if kluster == nil && err != nil {
+		log.Printf("getting the kluster resource from lister  %s", err.Error())
+		log.Printf("printing kluster value from lister %v\n", kluster)
+		//delete cluster form DO
+		err := do.Delete(c.k8sclient, "default/dosecret", name)
+		if err != nil {
+			log.Printf("error in deleting cluster %s", err.Error())
+			return false
+		}
+		log.Printf("deleted cluster from DO %s\n", name)
+		return true
+	}
+
 	if err != nil {
 		log.Printf("getting the kluster resource from lister  %s", err.Error())
 		return false
 	}
+
 	log.Printf("kluster spec that we have is %+v\n", kluster.Spec)
 
 	clusterID, err := do.Create(c.k8sclient, kluster.Spec)
 	if err != nil {
 		log.Printf("error in creating cluster %s", err.Error())
+		return false
 	}
 	//if we get error above obviously we won't be continuing to the next step directly or we will be
 	//capturing those in events too - type coulmn in events - normal, warning
