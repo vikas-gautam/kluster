@@ -32,6 +32,8 @@ func main() {
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
 		log.Printf("Building config from flags failed, %s, trying to build inclusterconfig", err.Error())
+
+		//inclusterconfig is for serviceaccount
 		config, err = rest.InClusterConfig()
 		if err != nil {
 			log.Printf("error %s building inclusterconfig", err.Error())

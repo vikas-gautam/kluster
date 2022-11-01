@@ -1,0 +1,29 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: kluster-cr
+rules:
+- apiGroups:
+  - golearning.dev
+  resources:
+  - klusters
+  verbs:
+  - list
+  - watch
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - get
+- apiGroups:
+  - golearning.dev
+  resources:
+  - klusters/status
+  verbs:
+  - update
+
+

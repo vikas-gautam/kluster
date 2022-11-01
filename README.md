@@ -61,8 +61,19 @@ record events - it prints the events under events field when u describe resource
 all the controllers or components those do something for resource they update their events under
 event field of that particular resource.
 
+-------------------------------------------------------------------------------------------------
+#packaging operator
 
+```
+ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build    
+ kubectl create deployment kluster --image vikas93/kluster:0.1.0 --dry-run=client -oyaml > install/deploy.yaml
+ kubectl create serviceaccount kluster-sa --dry-run=client -oyaml > install/sa.yaml
+ kubectl create clusterrole kluster-cr --resource kluster --verb list,watch --dry-run=client -oyaml > install/cr.yaml
+ kubectl create clusterrolebinding kluster-crb --clusterrole=kluster-cr --serviceaccount=default:kluster-sa  --dry-run=client -oyaml > install/crb.yaml
+ kubectl create role k-role --resource secret --verb get -dry-run=client -oyaml > install/krole.yaml
+ kubectl create rolebinding k-rb --serviceaccount=default:kluster-sa --role=k-role --dry-run=client -oyaml > install/kroleb.yaml
 
+```
 
 
 
